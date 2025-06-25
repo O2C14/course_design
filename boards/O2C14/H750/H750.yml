@@ -1,0 +1,20 @@
+identifier: H750/nrf52840
+name: stm32h750
+vendor: O2C14
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+ram: 1024
+flash: 128
+supported:
+  - arduino_gpio
+  - gpio
+  - dma
+  - flash
+  - rtc
+  - memc
+  - display
+  - spi

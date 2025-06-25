@@ -1,0 +1,28 @@
+identifier: F429
+name: STM32F429
+vendor: O2C14
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+ram: 260
+flash: 1024
+supported:
+  - arduino_gpio
+  - arduino_i2c
+  - arduino_spi
+  - netif:eth
+  - i2c
+  - spi
+  - gpio
+  - pwm
+  - counter
+  - usb_device
+  - watchdog
+  - adc
+  - dac
+  - dma
+  - rtc
+  - usbd

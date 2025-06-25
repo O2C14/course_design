@@ -1,0 +1,5 @@
+board:
+  name: F429
+  vendor: O2C14
+  socs:
+    - name: stm32f429xx

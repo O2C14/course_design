@@ -1,0 +1,2 @@
+config BOARD_F429
+	select SOC_STM32F429XX

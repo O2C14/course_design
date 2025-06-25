@@ -1,0 +1,2 @@
+config BOARD_H750
+	select SOC_STM32H750XX
