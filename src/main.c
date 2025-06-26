@@ -114,9 +114,10 @@ int main(void)
 
 	printf("board: %s\n", CONFIG_BOARD_TARGET);
 
-	int speed = 1;// 速度状态
-	int reversed = 0;// 反转状态
-	int motor_enable = 0;// 电机开关状态
+	int speed = 1;		  // 速度状态
+	int reversed = 0;	  // 反转状态
+	int motor_enable = 0; // 电机开关状态
+	int64_t last_press_time = 0;
 #if 0 
 	// 调试时改为1
 	gpio_pin_set_dt(&motor_in3, 0);
@@ -126,20 +127,31 @@ int main(void)
 	while (1)
 	{
 		struct button_data_t *rx_data = k_fifo_get(&button_fifo, K_FOREVER); // 读取按钮消息
+		int64_t now = k_uptime_get();
+		if (now - last_press_time < 500) // 抖动消除, 触发间隔小于500ms则忽略
+		{
+			k_free(rx_data);
+			continue;
+		}
+		else
+		{
+			last_press_time = now;
+		}
+
 		// printf("cb %p\n", rx_data->cb); 调试
-		/* 
+		/*
 			由于按钮和回调函数绑定,
 			所以只要在按钮按下时记录对应回调(rx_data->cb)
 			并在这里进行比较就能分辨是哪个按钮按下
 		*/
 		if (rx_data->cb == &button0_cb_data)
-		
+
 		{
 			// 启停
 			// printf("button0_cb_data %p\n", &button0_cb_data);
 			// gpio_pin_toggle_dt(&led0);
 			gpio_pin_set_dt(&led0, !motor_enable);
-			motor_enable = gpio_pin_get_dt(&led0);
+			motor_enable = gpio_pin_get_dt(&led0); // 如果电平没有修改成功, 那么下次也能向反方向修改电平
 
 			printf("motor_enable %d", motor_enable);
 			if (motor_enable)
@@ -157,8 +169,8 @@ int main(void)
 			// 换挡
 			// printf("button1_cb_data %p\n", &button1_cb_data);
 			printf("speed %d\n", speed);
-			uint32_t pulse = pwm_motor.period / speed; 
-			/* 
+			uint32_t pulse = pwm_motor.period / speed;
+			/*
 				高电平时长 = 周期 / 挡位.
 				周期已经预设为20ms, 可用代码调整
 			*/
@@ -166,14 +178,14 @@ int main(void)
 			speed++;
 			if (speed > 5)
 			{
-				speed = 1;// 循环调整
+				speed = 1; // 循环调整
 			}
 		}
 		else if (rx_data->cb == &button2_cb_data)
 		{
 			// 换向
 			// printf("button2_cb_data %p\n", &button2_cb_data);
-			if (motor_enable)// 电机启动后再调试
+			if (motor_enable) // 电机启动后再调试
 			{
 				reversed = !reversed;
 				printf("reversed %d\n", reversed);
