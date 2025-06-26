@@ -5,10 +5,10 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/gpio.h>
 
-static const struct pwm_dt_spec pwm_moto = PWM_DT_SPEC_GET(DT_ALIAS(pwm_moto));
+static const struct pwm_dt_spec pwm_motor = PWM_DT_SPEC_GET(DT_ALIAS(pwm_motor));
 static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
-static const struct gpio_dt_spec moto_in3 = GPIO_DT_SPEC_GET(DT_ALIAS(moto_in3), gpios);
-static const struct gpio_dt_spec moto_in4 = GPIO_DT_SPEC_GET(DT_ALIAS(moto_in4), gpios);
+static const struct gpio_dt_spec motor_in3 = GPIO_DT_SPEC_GET(DT_ALIAS(motor_in3), gpios);
+static const struct gpio_dt_spec motor_in4 = GPIO_DT_SPEC_GET(DT_ALIAS(motor_in4), gpios);
 static const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(sw0), gpios, {0});
 static const struct gpio_dt_spec button1 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(sw1), gpios, {0});
 static const struct gpio_dt_spec button2 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(sw2), gpios, {0});
@@ -22,14 +22,14 @@ struct button_data_t
 };
 
 K_FIFO_DEFINE(button_fifo);
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+static void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	struct button_data_t *data = k_malloc(sizeof(struct button_data_t));
 	data->cb = cb;
 	k_fifo_put(&button_fifo, data);
 }
 
-int board_gpio_init(const struct gpio_dt_spec *spec)
+static int board_gpio_init(const struct gpio_dt_spec *spec)
 {
 	int ret;
 	ret = gpio_is_ready_dt(spec);
@@ -47,7 +47,7 @@ int board_gpio_init(const struct gpio_dt_spec *spec)
 	return 0;
 }
 
-int init_buttom_x(const struct gpio_dt_spec *button, struct gpio_callback *button_cb_data, void *button_pressed)
+static int init_buttom_x(const struct gpio_dt_spec *button, struct gpio_callback *button_cb_data, void *button_pressed)
 {
 	int ret;
 
@@ -81,17 +81,32 @@ int init_buttom_x(const struct gpio_dt_spec *button, struct gpio_callback *butto
 	printf("Set up button at %s pin %d\n", button->port->name, button->pin);
 	return 0;
 }
+
+static void toggle_reversed(int reversed)
+{
+	if (reversed)
+	{
+		gpio_pin_set_dt(&motor_in3, 0);
+		gpio_pin_set_dt(&motor_in4, 1);
+	}
+	else
+	{
+		gpio_pin_set_dt(&motor_in3, 1);
+		gpio_pin_set_dt(&motor_in4, 0);
+	}
+}
+
 int main(void)
 {
-	if (!pwm_is_ready_dt(&pwm_moto))
+	if (!pwm_is_ready_dt(&pwm_motor))
 	{
 		printf("Error: PWM device %s is not ready\n",
-			   pwm_moto.dev->name);
+			   pwm_motor.dev->name);
 		return 0;
 	}
 	board_gpio_init(&led0);
-	board_gpio_init(&moto_in3);
-	board_gpio_init(&moto_in4);
+	board_gpio_init(&motor_in3);
+	board_gpio_init(&motor_in4);
 
 	init_buttom_x(&button0, &button0_cb_data, button_pressed);
 	init_buttom_x(&button1, &button1_cb_data, button_pressed);
@@ -99,38 +114,42 @@ int main(void)
 
 	printf("board: %s\n", CONFIG_BOARD_TARGET);
 
-	int speed = 1;
-	int reversed = 0;
-	int moto_enable = 0;
+	int speed = 1;// 速度状态
+	int reversed = 0;// 反转状态
+	int motor_enable = 0;// 电机开关状态
+#if 0 
+	// 调试时改为1
+	gpio_pin_set_dt(&motor_in3, 0);
+	gpio_pin_set_dt(&motor_in4, 1);
+	pwm_set_pulse_dt(&pwm_motor, pwm_motor.period / 2);
+#endif
 	while (1)
 	{
-		struct button_data_t *rx_data = k_fifo_get(&button_fifo, K_FOREVER);
-		printf("cb %p\n", rx_data->cb);
-
+		struct button_data_t *rx_data = k_fifo_get(&button_fifo, K_FOREVER); // 读取按钮消息
+		// printf("cb %p\n", rx_data->cb); 调试
+		/* 
+			由于按钮和回调函数绑定,
+			所以只要在按钮按下时记录对应回调(rx_data->cb)
+			并在这里进行比较就能分辨是哪个按钮按下
+		*/
 		if (rx_data->cb == &button0_cb_data)
+		
 		{
 			// 启停
 			// printf("button0_cb_data %p\n", &button0_cb_data);
-			gpio_pin_toggle_dt(&led0);
-			moto_enable = gpio_pin_get_dt(&led0);
+			// gpio_pin_toggle_dt(&led0);
+			gpio_pin_set_dt(&led0, !motor_enable);
+			motor_enable = gpio_pin_get_dt(&led0);
 
-			if (moto_enable)
+			printf("motor_enable %d", motor_enable);
+			if (motor_enable)
 			{
-				if (reversed)
-				{
-					gpio_pin_set_dt(&moto_in3, 0);
-					gpio_pin_set_dt(&moto_in4, 1);
-				}
-				else
-				{
-					gpio_pin_set_dt(&moto_in3, 1);
-					gpio_pin_set_dt(&moto_in4, 0);
-				}
+				toggle_reversed(motor_enable);
 			}
 			else
 			{
-				gpio_pin_set_dt(&moto_in3, 0);
-				gpio_pin_set_dt(&moto_in4, 0);
+				gpio_pin_set_dt(&motor_in3, 0);
+				gpio_pin_set_dt(&motor_in4, 0);
 			}
 		}
 		else if (rx_data->cb == &button1_cb_data)
@@ -138,31 +157,27 @@ int main(void)
 			// 换挡
 			// printf("button1_cb_data %p\n", &button1_cb_data);
 			printf("speed %d\n", speed);
-			uint32_t pulse = pwm_moto.period / speed;
-			pwm_set_pulse_dt(&pwm_moto, pulse);
+			uint32_t pulse = pwm_motor.period / speed; 
+			/* 
+				高电平时长 = 周期 / 挡位.
+				周期已经预设为20ms, 可用代码调整
+			*/
+			pwm_set_pulse_dt(&pwm_motor, pulse);
 			speed++;
 			if (speed > 5)
 			{
-				speed = 1;
+				speed = 1;// 循环调整
 			}
 		}
 		else if (rx_data->cb == &button2_cb_data)
 		{
 			// 换向
 			// printf("button2_cb_data %p\n", &button2_cb_data);
-			if (moto_enable)
+			if (motor_enable)// 电机启动后再调试
 			{
 				reversed = !reversed;
-				if (reversed)
-				{
-					gpio_pin_set_dt(&moto_in3, 0);
-					gpio_pin_set_dt(&moto_in4, 1);
-				}
-				else
-				{
-					gpio_pin_set_dt(&moto_in3, 1);
-					gpio_pin_set_dt(&moto_in4, 0);
-				}
+				printf("reversed %d\n", reversed);
+				toggle_reversed(motor_enable);
 			}
 		}
 

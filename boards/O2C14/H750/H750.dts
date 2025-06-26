@@ -18,17 +18,17 @@
 		led_0: led_0 {
 			gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
 		};
-		moto_ctrl0: moto_ctrl0 {
+		motor_ctrl0: motor_ctrl0 {
 			gpios = <&gpioc 3 GPIO_ACTIVE_LOW>;
 		};
-		moto_ctrl1: moto_ctrl1 {
+		motor_ctrl1: motor_ctrl1 {
 			gpios = <&gpioc 1 GPIO_ACTIVE_LOW>;
 		};
 	};
 
-	pwm_motos: pwm_motos {
+	pwm_motors: pwm_motors {
 		compatible = "pwm-leds";
-		pwm_moto1: pwm_moto1{
+		pwm_motor1: pwm_motor1{
 			pwms = <&pwm2 2 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
 		};
 	};
@@ -51,9 +51,9 @@
 		sw0 = &key_0;
 		sw1 = &key_1;
 		sw2 = &key_2;
-		moto-in3 = &moto_ctrl0;
-		moto-in4 = &moto_ctrl1;
-		pwm-moto = &pwm_moto1;
+		motor-in3 = &motor_ctrl0;
+		motor-in4 = &motor_ctrl1;
+		pwm-motor = &pwm_motor1;
 	};
 };
 
